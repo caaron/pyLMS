@@ -29,12 +29,20 @@ fig, (ax1, ax2) = plt.subplots(2,1)
 frames = 0
 canc_file.setsampwidth(p.get_sample_size(pyaudio.paInt16))
 canc_file.setnchannels(1)
-canc_file.setframerate(RATE)
-rec = recorder.Recorder(channels=2)
+canc_file.setframerate(fe_file.getframerate())
+rec = recorder.Recorder(channels=1)
 recfile = rec.open('mic.wav', 'wb')
 recfile.start_recording()
 
 farend_data = fe_file.readframes(CHUNK)
+micdata = None
+primerFrames = 0
+while len(farend_data) > 0 and micdata is None:
+    OutputStream.write(farend_data)
+    micdata = recfile.data_frame
+    primerFrames += 1
+
+print("%d primer frames, now receiving mic data" % (primerFrames))
 
 try:
     while len(farend_data) > 0:
@@ -43,7 +51,7 @@ try:
         OutputStream.write(farend_data)
 
         # read in mic samples
-        micdata = np.fromstring(InputStream.read(CHUNK), dtype=np.int16)
+        micdata = recfile.data_frame
         canc_file.writeframes(micdata)
 
         frames += CHUNK
@@ -65,8 +73,8 @@ except EOFError:
 except KeyboardInterrupt:
     print('quitting...')
 
-InputStream.stop_stream()
-InputStream.close()
+#InputStream.stop_stream()
+#InputStream.close()
 OutputStream.stop_stream()
 OutputStream.close()
 p.terminate()
