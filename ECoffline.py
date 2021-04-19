@@ -14,7 +14,7 @@ from scipy.io.wavfile import read
 #fig, (ax1, ax2) = plt.subplots(2,1)
 
 mMicisJustDelay = True
-fig, ax1 = plt.subplots()
+fig, axes = plt.subplots(2,1)
 #fe_file = wave.open('farend.wav', 'rb')
 #mic_file = wave.open('mic.wav','rb')
 canc_file = wave.open('canc_offline.wav', 'wb')
@@ -22,7 +22,9 @@ farend_alldata = read('farend.wav')
 floatFEdata = np.array(farend_alldata[1]/32768.0,dtype=float)
 if mMicisJustDelay:
     nDly = 10
-    floatMICdata = np.array(np.zeros(nDly), floatFEdata[0:-nDly])
+    z = np.zeros(nDly)
+    d = np.array(floatFEdata[0:-nDly],copy=True)
+    floatMICdata = np.concatenate((z, d))
 else:
     mic_alldata = read('mic.wav')
     floatMICdata = np.array(mic_alldata[1] / 32768.0, dtype=float)
@@ -37,7 +39,7 @@ canc_file.setsampwidth(2)
 canc_file.setnchannels(1)
 canc_file.setframerate(farend_alldata[0])
 
-lms = pa.filters.FilterLMS(n=FILTERLENGTH, mu=0.001, w="zeros")
+lms = pa.filters.FilterLMS(n=FILTERLENGTH, mu=0.01, w="zeros")
 
 primerFrames = 0
 mPlotdata = True
@@ -86,8 +88,7 @@ maxerr = 0
 frames = 0
 start = frames*CHUNK
 farend_frame = floatFEdata[start:start+CHUNK]
-#mic_frame = floatMICdata[start:start+CHUNK]
-mic_frame = delayfilter(farend_frame)
+mic_frame = floatMICdata[start:start+CHUNK]
 
 try:
     while len(farend_frame) > 0 and len(mic_frame) > 0:
@@ -104,16 +105,18 @@ try:
             if abs(e) > maxerr:
                 maxerr = abs(e)
 #            if abs(e) > .2:
-            lms.adapt(e, dlyline)
+            lms.adapt(-e, dlyline)
             filtOutput[idx] = y
             error[idx] = e
 
         if mPlotdata:
-            ax1.clear()
+            axes[0].clear()
             t = np.arange(frames*CHUNK,(frames+1)*CHUNK)
-            d1 = ax1.plot(t,farend_frame,t,mic_frame,t,filtOutput,t,error)
+            d1 = axes[0].plot(t,farend_frame,t,mic_frame,t,filtOutput,t,error)
             #ax1.set_ylim(-32768, 32767)
-            ax1.legend(["farend","mic","estimate","error"])
+            axes[0].legend(["farend","mic","estimate","error"])
+            axes[1].clear()
+            axes[1].plot(lms.w)
             plt.show()
             plt.pause(.001)
 
@@ -123,8 +126,8 @@ try:
         frames += 1
         start = frames * CHUNK
         farend_frame = floatFEdata[start:start + CHUNK]
-        #mic_frame = floatMICdata[start:start + CHUNK]
-        mic_frame = delayfilter(farend_frame)
+        mic_frame = floatMICdata[start:start + CHUNK]
+
 
 except EOFError:
     print('Hello user it is EOF exception, please enter something and run me again')
