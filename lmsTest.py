@@ -4,13 +4,15 @@ import padasip as pa
 import wave
 from scipy.io.wavfile import read
 import sys
+import scipy.signal as sig
 #sys.path.append("../pyDSP")
 from play import play
+from myLMS import myFilterLMS
 
 # these two function supplement your online measurement
-def measure_x():
+def getInput():
     # it produces input vector of size 3
-    x = np.random.random(3)
+    x = np.random.random(1)
     return x
 
 
@@ -24,22 +26,36 @@ def delay(dl):
         dl[n] = dl[n-1]
     return dl
 
+
 canc_file = wave.open('canc_offline.wav', 'wb')
-farend_file = read('farend_short.wav')
-d_file = read('mic_short.wav')
-farend_data = np.array(farend_file[1]/32768.0,dtype=float)
+Fs,farend_data = read('farend_short.wav')
+
+#dFs,d_file = read('mic_short.wav')
+dFs = Fs
+farend_data = np.array(farend_data/32768.0,dtype=float)
+if (dFs != Fs):
+    d_file = sig.resample(d_file,int(len(farend_data)/Fs))
+
+#dFs,d_file = read('mic_short.wav')
+h = np.array([0,0,0,0,1,0,0,0,0,0])
+dFs = Fs
+
+d_data = sig.lfilter(h,1,farend_data)
 
 #plt.figure()
-d_data = np.array(d_file[1]/32768.0,dtype=float)
-d_data = np.append(np.zeros(20),farend_data)
+#d_data = np.array(d_file/32768.0,dtype=float)
+# delay the farend data by 20 samples
+#d_data = np.append(np.zeros(20),farend_data)
 #plt.subplot(211)
+#plt.plot(farend_data)
 #plt.plot(d_data)
-d_data = d_data + np.random.random(len(d_data))/1000
+#plt.pause(.1)
+#d_data = d_data + np.random.random(len(d_data))/10000
 #plt.subplot(212)
 #plt.plot(d_data)
 #plt.show()
 
-if len(d_file[1]) > len(farend_file[1]):
+if len(d_data) > len(farend_data):
     farend_data = np.append(farend_data,np.zeros(len(d_data)-len(farend_data)))
 else:
     d_data = np.append(d_data,np.zeros(len(farend_data)-len(d_data)))
@@ -51,12 +67,14 @@ xDL = np.zeros(tailLength)
 log_d = np.zeros(N)
 log_y = np.zeros(N)
 err = np.zeros(N)
-filt = pa.filters.FilterLMS(tailLength, mu=.1, )
+#filt2 = pa.filters.FilterNLMS(tailLength, mu=1)
+filt = myFilterLMS(tailLength, mu=.1, w="zeros")
+
 simul = False
 for k in range(N):
     # measure input
     if simul:
-        x = measure_x()
+        x = getInput()
     else:
         xDL = delay(xDL)
         xDL[0] = farend_data[k]
@@ -83,6 +101,7 @@ plt.figure(figsize=(15, 9))
 plt.subplot(221)
 plt.title("Adaptation")
 plt.xlabel("samples - k")
+xr = np.arange(len(log_d))/Fs
 plt.plot(log_d, "b", label="d - target")
 plt.plot(log_y, "g", label="y - output")
 plt.legend()
@@ -90,16 +109,18 @@ plt.subplot(222)
 plt.title("Filter error")
 plt.xlabel("samples - k")
 plt.plot(10 * np.log10((log_d - log_y) ** 2), "r", label="e - error [dB]")
-plt.legend();
-plt.subplot(223);
+plt.legend()
+plt.grid()
+plt.subplot(223)
 plt.title("Filter error")
 plt.xlabel("samples - k")
 plt.plot(log_d - log_y, "b", label="error")
 plt.legend()
 plt.subplot(224)
 plt.title("Filter")
-plt.xlabel("x")
+plt.xlabel("taps")
 plt.plot(filt.w, "b", label="error")
+plt.grid()
 plt.legend()
 
 plt.tight_layout()

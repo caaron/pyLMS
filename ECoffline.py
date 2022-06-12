@@ -39,12 +39,10 @@ canc_file.setsampwidth(2)
 canc_file.setnchannels(1)
 canc_file.setframerate(farend_alldata[0])
 
-lms = pa.filters.FilterLMS(n=FILTERLENGTH, mu=0.01, w="zeros")
+answer = np.zeros(FILTERLENGTH-1)
+answer = np.insert(answer,nDly,1)
+lms = pa.filters.FilterLMS(n=FILTERLENGTH, mu=0.02, w=answer)
 
-primerFrames = 0
-mPlotdata = True
-
-dlyline = np.zeros(FILTERLENGTH)
 
 
 
@@ -84,6 +82,10 @@ def float2fixed(x):
         idx += 1
     return y
 
+dlyline = np.zeros(FILTERLENGTH)
+
+primerFrames = 0
+mPlotdata = False
 maxerr = 0
 frames = 0
 start = frames*CHUNK
