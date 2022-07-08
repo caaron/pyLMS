@@ -1,3 +1,8 @@
+# LMS filter test bench
+# C. Aaron Hall
+# Copyright 2022 by Garmin Ltd. or its subsidiaries.
+
+
 import numpy as np
 import matplotlib.pylab as plt
 import padasip as pa
@@ -8,6 +13,7 @@ import scipy.signal as sig
 #sys.path.append("../pyDSP")
 from play import play
 from myLMS import myFilterLMS
+from dtd import doubleTalkDetection
 
 # these two function supplement your online measurement
 def getInput():
@@ -28,16 +34,20 @@ def delay(dl):
 
 
 canc_file = wave.open('canc_offline.wav', 'wb')
-Fs,farend_data = read('farend_short.wav')
+Fs,farend_data = read('Hill.wav')
+farend_data = farend_data[:Fs*3]
 
 #dFs,d_file = read('mic_short.wav')
 dFs = Fs
 farend_data = np.array(farend_data/32768.0,dtype=float)
-if (dFs != Fs):
-    d_file = sig.resample(d_file,int(len(farend_data)/Fs))
+
+# use white noise to get maximum results
+#farend_data = np.random.random(100000)
+#if (dFs != Fs):
+#    d_file = sig.resample(d_file,int(len(farend_data)/Fs))
 
 #dFs,d_file = read('mic_short.wav')
-h = np.array([0,0,0,0,1,0,0,0,0,0])
+h = np.array([0,0.5,0,0,0.3,0,0,0,0,0.1,0,0,0])
 dFs = Fs
 
 d_data = sig.lfilter(h,1,farend_data)
@@ -46,8 +56,11 @@ d_data = sig.lfilter(h,1,farend_data)
 #d_data = np.array(d_file/32768.0,dtype=float)
 # delay the farend data by 20 samples
 #d_data = np.append(np.zeros(20),farend_data)
-#plt.subplot(211)
-#plt.plot(farend_data)
+#plt.subplot(111)
+#plt.stem(h,linefmt="C0:",label="h")
+#markerline, stemlines, baseline = plt.stem(h*2,linefmt="C3--",markerfmt="D",label="estimate")
+#markerline.set_markerfacecolor('none')
+#plt.legend()
 #plt.plot(d_data)
 #plt.pause(.1)
 #d_data = d_data + np.random.random(len(d_data))/10000
@@ -60,37 +73,40 @@ if len(d_data) > len(farend_data):
 else:
     d_data = np.append(d_data,np.zeros(len(farend_data)-len(d_data)))
 
-
 N = len(farend_data)
 tailLength = 50  #int(.100 * 44100)
 xDL = np.zeros(tailLength)
 log_d = np.zeros(N)
 log_y = np.zeros(N)
 err = np.zeros(N)
-#filt2 = pa.filters.FilterNLMS(tailLength, mu=1)
+filt2 = pa.filters.FilterNLMS(tailLength, mu=1)
+hh = np.append(h,np.zeros(tailLength-len(h)))
+hh = hh + np.random.random(len(hh))/100
 filt = myFilterLMS(tailLength, mu=.1, w="zeros")
+d_data = np.append(d_data,np.zeros(tailLength))
 
 simul = False
 for k in range(N):
     # measure input
-    if simul:
-        x = getInput()
-    else:
-        xDL = delay(xDL)
-        xDL[0] = farend_data[k]
+    xDL = delay(xDL)
+    xDL[0] = farend_data[k]
+    # get desired output from input
+    d = d_data[k]
+    dDL = d_data[k:k+tailLength]
+    # double talk detection
+    dtdState = doubleTalkDetection(xDL,dDL)
+
     # predict new value
     y = filt.predict(xDL)
+    #y = filt2.predict(xDL)
     if np.isnan(y):
         print("Output is NaN, probably use a smaller mu")
     # do the important stuff with prediction output
     pass
-    # generate desired output from input
-    if simul:
-        d = generate_d(x)
-    else:
-        d = d_data[k]
-    # update filter
-    filt.adapt(d, xDL)
+    if not dtdState:
+        # update filter
+        filt.adapt(d, xDL)
+        #filt2.adapt(d, xDL)
     # log values
     log_d[k] = d
     log_y[k] = y
@@ -119,7 +135,11 @@ plt.legend()
 plt.subplot(224)
 plt.title("Filter")
 plt.xlabel("taps")
-plt.plot(filt.w, "b", label="error")
+#plt.stem(h, "b", label="System")
+#plt.stem(filt2.w, "r", label="System Estimate")
+plt.stem(h,linefmt="C0:",label="h")
+markerline, stemlines, baseline = plt.stem(filt.w,linefmt="C3--",markerfmt="D",label="estimate")
+markerline.set_markerfacecolor('none')
 plt.grid()
 plt.legend()
 
