@@ -1,0 +1,8 @@
+numpy
+matplotlib
+scipy
+setuptools
+wave
+padasip
+pyaudio
+recorder

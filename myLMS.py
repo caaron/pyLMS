@@ -10,7 +10,10 @@ class myFilterLMS(FilterLMS):
         else:
             raise ValueError('The size of filter must be an integer')
         self.mu = self.check_float_param(mu, 0, 1000, "mu")
-        self.init_weights(w, self.n)
+        if type(w) is np.ndarray:
+            self.w = w
+        else:
+            self.init_weights(w, self.n)
         self.w_history = np.empty((0,self.n), float)
         self.wHist = wHist
 

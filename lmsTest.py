@@ -84,6 +84,7 @@ hh = np.append(h,np.zeros(tailLength-len(h)))
 hh = hh + np.random.random(len(hh))/100
 filt = myFilterLMS(tailLength, mu=.1, w="zeros")
 d_data = np.append(d_data,np.zeros(tailLength))
+dtdHistory = []
 
 simul = False
 for k in range(N):
@@ -95,6 +96,7 @@ for k in range(N):
     dDL = d_data[k:k+tailLength]
     # double talk detection
     dtdState = doubleTalkDetection(xDL,dDL)
+    dtdHistory.append(dtdState)
 
     # predict new value
     y = filt.predict(xDL)
@@ -103,7 +105,9 @@ for k in range(N):
         print("Output is NaN, probably use a smaller mu")
     # do the important stuff with prediction output
     pass
-    if not dtdState:
+    if dtdState:
+        pass
+    else:
         # update filter
         filt.adapt(d, xDL)
         #filt2.adapt(d, xDL)
@@ -113,11 +117,17 @@ for k in range(N):
     err[k] = y - d
 
 ### show results
+xr = np.arange(len(log_d))/Fs
+plt.figure()
+plt.plot(d_data,label="SpkrOut")
+plt.plot(farend_data,label="MicIn")
+plt.plot(np.array(dtdHistory)*max(max(farend_data),max(d_data)),label="dtd")
+plt.title("DTD")
+plt.pause(.1)
 plt.figure(figsize=(15, 9))
 plt.subplot(221)
 plt.title("Adaptation")
 plt.xlabel("samples - k")
-xr = np.arange(len(log_d))/Fs
 plt.plot(log_d, "b", label="d - target")
 plt.plot(log_y, "g", label="y - output")
 plt.legend()

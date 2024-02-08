@@ -1,4 +1,4 @@
-import struct
+#import struct
 
 import pyaudio
 import numpy as np
@@ -7,7 +7,7 @@ import wave
 
 import scipy
 
-import recorder
+#import recorder
 import padasip as pa
 from scipy.io.wavfile import read
 
@@ -85,7 +85,7 @@ def float2fixed(x):
 dlyline = np.zeros(FILTERLENGTH)
 
 primerFrames = 0
-mPlotdata = False
+doPlotdata = True
 maxerr = 0
 frames = 0
 start = frames*CHUNK
@@ -111,7 +111,7 @@ try:
             filtOutput[idx] = y
             error[idx] = e
 
-        if mPlotdata:
+        if doPlotdata:
             axes[0].clear()
             t = np.arange(frames*CHUNK,(frames+1)*CHUNK)
             d1 = axes[0].plot(t,farend_frame,t,mic_frame,t,filtOutput,t,error)
