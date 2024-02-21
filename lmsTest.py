@@ -52,22 +52,6 @@ dFs = Fs
 
 d_data = sig.lfilter(h,1,farend_data)
 
-#plt.figure()
-#d_data = np.array(d_file/32768.0,dtype=float)
-# delay the farend data by 20 samples
-#d_data = np.append(np.zeros(20),farend_data)
-#plt.subplot(111)
-#plt.stem(h,linefmt="C0:",label="h")
-#markerline, stemlines, baseline = plt.stem(h*2,linefmt="C3--",markerfmt="D",label="estimate")
-#markerline.set_markerfacecolor('none')
-#plt.legend()
-#plt.plot(d_data)
-#plt.pause(.1)
-#d_data = d_data + np.random.random(len(d_data))/10000
-#plt.subplot(212)
-#plt.plot(d_data)
-#plt.show()
-
 if len(d_data) > len(farend_data):
     farend_data = np.append(farend_data,np.zeros(len(d_data)-len(farend_data)))
 else:
@@ -79,7 +63,6 @@ xDL = np.zeros(tailLength)
 log_d = np.zeros(N)
 log_y = np.zeros(N)
 err = np.zeros(N)
-filt2 = pa.filters.FilterNLMS(tailLength, mu=1)
 hh = np.append(h,np.zeros(tailLength-len(h)))
 hh = hh + np.random.random(len(hh))/100
 filt = myFilterLMS(tailLength, mu=.1, w="zeros")
@@ -100,7 +83,6 @@ for k in range(N):
 
     # predict new value
     y = filt.predict(xDL)
-    #y = filt2.predict(xDL)
     if np.isnan(y):
         print("Output is NaN, probably use a smaller mu")
     # do the important stuff with prediction output
@@ -110,7 +92,6 @@ for k in range(N):
     else:
         # update filter
         filt.adapt(d, xDL)
-        #filt2.adapt(d, xDL)
     # log values
     log_d[k] = d
     log_y[k] = y
@@ -154,11 +135,7 @@ plt.grid()
 plt.legend()
 
 plt.tight_layout()
-#plt.subplot(223);
-#plt.draw()
 plt.pause(.1)
-#plt.pause(.1)
-#plt.show()
 
 ### play results
 #play(log_d,Fs=44100, nCh=1)
@@ -167,4 +144,4 @@ play(d_data,Fs=44100, nCh=1)
 play(err,Fs=44100, nCh=1)
 
 
-plt.pause(1)
+pass
