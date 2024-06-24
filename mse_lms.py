@@ -20,15 +20,18 @@ Fs,farend_alldata = read('farend.wav')
 floatFEdata = np.array(farend_alldata/32768.0,dtype=float)
 Fs = 16000
 t = np.arange(3*Fs)/Fs
-floatFEdata = (32767 * np.sin(2*np.pi*100*t)).astype(np.int32)
+#floatFEdata = (32767 * np.sin(2*np.pi*100*t)).astype(np.int32)
 nDly = 50
 
 z = np.zeros(nDly)
 d = 1 * np.array(floatFEdata[0:-nDly],copy=True)
 floatMICdata = np.concatenate((z, d)) + (np.random.random(np.size(floatFEdata))/1e6)
 h = np.array([0,0,0,0,0,0,0,0,0,.7,0,0,0,.3,0,0,0,.1])
+#h = np.array([0,0,0,0,0,0,0,0,0,.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-.5])
 #h = np.array([0,0,0,0,0,0,0,0,0,.7])
+#h = np.array([0,0,0,0,0,0,0,0,0,1.0])
 #floatMICdata = sig.lfilter(h,1,floatFEdata)
+#floatMICdata = sig.lfilter(h,1,floatFEdata) + (np.random.random(np.size(floatFEdata))/1e6)
 mic_frame = floatMICdata[:CHUNK]
 farend_frame = floatFEdata[:CHUNK]
 
@@ -80,26 +83,28 @@ while len(mic_frame) == CHUNK:
         peak_Errs[dly] = errPeaklog
         RMS_Errs[dly] = errRMSlog
         if errPeaklog < best_peak:
-            best_peak = errPeaklog
             best_peak_idx = dly
             best_rms_y = yRMS
+            best_log = errPeaklog
         if errRMSlog < best_RMS:
             best_RMS = errRMSlog
             best_RMS_idx = dly
             best_peak_y = yPeak
+            best_log = errRMSlog
         idxDly += 1
 
     if False:
         offset = 4
         axes[0].clear()
         #axes[0].plot(fer)
-        axes[0].plot(mic_frame[::-1])
+        axes[0].plot(mic_frame)
     #    axes[0].plot(dlyLine[CHUNK:(CHUNK+CHUNK)])
-        axes[0].plot(best_peak_y)
-        axes[0].legend(['mic_frame',f'best_peak_y'])
+        axes[0].plot(best_peak_y[::-1])
+        axes[0].plot(farend_frame)
+        axes[0].legend(['mic_frame',f'best_peak_y','farend_frame'])
         plt.grid()
         axes[1].clear()
-        axes[1].plot(best_peak_y - mic_frame[::-1])
+        axes[1].plot(best_peak_y[::-1] - mic_frame)
         #plt.figtext(.5,0, f'c:{mc} at {mci}')
         if False:
             axes[1][0].clear()
@@ -131,15 +136,17 @@ while len(mic_frame) == CHUNK:
 
     if RMS_Errs.min() < peak_Errs.min():
         peakvsRMS = np.append(peakvsRMS,1)      # 1 means RMS was lower MSE than peak
-        y = best_RMS
-        errHistory[start:start + CHUNK] = errRMS
+        y = best_rms_y[::-1]
     else:
         peakvsRMS = np.append(peakvsRMS, 0)     # 0 means peak was better
         y = best_peak_y[::-1]
-        errHistory[start:start + CHUNK] = errPeak
 
-    errLogHistory = np.append(errLogHistory, y)
-    errHistory[start:start + CHUNK] = errRMS
+    y = best_peak_y[::-1]
+    err = y - mic_frame
+    errHistory[start:start + CHUNK] = err
+    erle = 20*np.log10(rms(err)/rms(mic_frame))
+    errLogHistory = np.append(errLogHistory, erle)
+    #errHistory[start:start + CHUNK] = errRMS
     yHistory[start:start + CHUNK] = y
 
     frames += 1
@@ -147,11 +154,14 @@ while len(mic_frame) == CHUNK:
     mic_frame = floatMICdata[start:start + CHUNK]
     farend_frame = floatFEdata[start:start + CHUNK]
 
+avgERLE = np.mean(errLogHistory)
 axes[0].plot(errLogHistory,label=f"errLogHistory")
+axes[0].plot(np.ones_like(errLogHistory) * avgERLE,label=f"avgERLE")
 #axes[0].plot(RMSidxs,label=f"bestIDxs")
 axes[0].legend()
 axes[1].plot(yHistory, label=f"y")
 axes[1].plot(floatMICdata, label=f"mic")
+axes[1].plot(errHistory, label=f"err")
 axes[1].legend()
 plt.pause(.1)
 plt.pause(.1)
