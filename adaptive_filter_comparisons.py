@@ -35,6 +35,27 @@ else:
     mic_alldata = read('mic.wav')
     floatMICdata = np.array(mic_alldata[1] / 32768.0, dtype=float)
 
+def mean_without_outliers(data, threshold=1.5):
+    """
+    Calculates the mean of a list after removing outliers using the IQR method.
+
+    Args:
+        data (list): The list of numerical values.
+        threshold (float): The multiplier for the IQR to define outliers (default: 1.5).
+
+    Returns:
+        float: The mean of the data without outliers.
+    """
+
+    q1 = np.percentile(data, 5)
+    q3 = np.percentile(data, 95)
+    iqr = q3 - q1
+    lower_bound = q1 - threshold * iqr
+    upper_bound = q3 + threshold * iqr
+
+    filtered_data = [x for x in data if lower_bound <= x <= upper_bound]
+
+    return np.mean(filtered_data)
 
 def generateX(b,a,title,Fs=48000):
     x1 = np.random.random(Fs*2)
@@ -82,14 +103,19 @@ def run_simulation(input,desired,filt,filtTitle):
     ### show results
     #plt.figure(figsize=(15,9))
     plt.figure()
-    plt.subplot(211);plt.title("Adaptation");plt.xlabel("samples - k")
+    plt.subplot(211)
+    plt.title(title)
+    plt.xlabel("samples - k")
     plt.plot(log_d,"b", label="d - target")
-    plt.plot(log_y,"g", label="y - output");plt.legend()
-    plt.subplot(212);plt.title("Filter error");plt.xlabel("samples - k")
-    err = 10*np.log10(1e-20+(log_d-log_y)**2)
+    plt.plot(log_y,"g", label="y - output")
+    plt.legend()
+    plt.subplot(212)
+    err = 10*np.log10(1e-12+(log_d-log_y)**2)
     plt.plot(err,"r", label="e - error [dB]")
-    avgPerformance = np.ones(len(err))*np.mean(err[int(.9*len(err)):])
-    plt.plot(avgPerformance,"b", label="avg error [dB]")
+    avgPerformance =  mean_without_outliers(err[int(.9*len(err)):])
+    plt.plot(np.ones(len(err)) * avgPerformance,"b", label="avg error [dB]")
+    plt.title(f"Filter error  avg:{avgPerformance:.2f}")
+    plt.xlabel("samples - k")
     plt.legend(); plt.tight_layout();
     plt.pause(.1)
     plt.show()
@@ -117,3 +143,7 @@ d = generateD(x,h1,1,'d??')
 for f,title in filts:
     run_simulation(x,d,f,title)
 
+
+plt.pause(.1)
+plt.show()
+plt.pause(.1)
