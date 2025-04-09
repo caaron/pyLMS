@@ -41,7 +41,7 @@ farend_data = farend_data[:Fs*3]
 dFs = Fs
 farend_data = np.array(farend_data/32768.0,dtype=float)
 
-# use white noise to get maximum results
+# use white noise to get maximum results (ie.training mode)
 #farend_data = np.random.random(100000)
 #if (dFs != Fs):
 #    d_file = sig.resample(d_file,int(len(farend_data)/Fs))
@@ -63,9 +63,11 @@ xDL = np.zeros(tailLength)
 log_d = np.zeros(N)
 log_y = np.zeros(N)
 err = np.zeros(N)
+filt2 = pa.filters.FilterNLMS(tailLength, mu=1)
+#filt2 = pa.filters.FilterAP(n=tailLength, order=5, mu=.5, ifc=0.001, w='random')
 hh = np.append(h,np.zeros(tailLength-len(h)))
 hh = hh + np.random.random(len(hh))/100
-filt = myFilterLMS(tailLength, mu=.1, w="zeros")
+filt = myFilterLMS(tailLength, mu=.21, w="zeros")
 d_data = np.append(d_data,np.zeros(tailLength))
 dtdHistory = []
 
@@ -82,7 +84,8 @@ for k in range(N):
     dtdHistory.append(dtdState)
 
     # predict new value
-    y = filt.predict(xDL)
+    #y = filt.predict(xDL)
+    y = filt2.predict(xDL)
     if np.isnan(y):
         print("Output is NaN, probably use a smaller mu")
     # do the important stuff with prediction output
@@ -91,7 +94,8 @@ for k in range(N):
         pass
     else:
         # update filter
-        filt.adapt(d, xDL)
+        #filt.adapt(d, xDL)
+        filt2.adapt(d, xDL)
     # log values
     log_d[k] = d
     log_y[k] = y
@@ -129,7 +133,8 @@ plt.xlabel("taps")
 #plt.stem(h, "b", label="System")
 #plt.stem(filt2.w, "r", label="System Estimate")
 plt.stem(h,linefmt="C0:",label="h")
-markerline, stemlines, baseline = plt.stem(filt.w,linefmt="C3--",markerfmt="D",label="estimate")
+markerline, stemlines, baseline = plt.stem(filt2.w,linefmt="C3--",markerfmt="D",label="estimate")
+#markerline, stemlines, baseline = plt.stem(filt.w,linefmt="C3--",markerfmt="D",label="estimate")
 markerline.set_markerfacecolor('none')
 plt.grid()
 plt.legend()
@@ -140,8 +145,8 @@ plt.pause(.1)
 ### play results
 #play(log_d,Fs=44100, nCh=1)
 #play(farend_data,Fs=44100, nCh=1)
-play(d_data,Fs=44100, nCh=1)
-play(err,Fs=44100, nCh=1)
+#play(d_data,Fs=44100, nCh=1)
+#play(err,Fs=44100, nCh=1)
 
 
 pass
