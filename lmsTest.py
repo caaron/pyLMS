@@ -7,46 +7,38 @@ import numpy as np
 import matplotlib.pylab as plt
 import padasip as pa
 import wave
+
+#from line_enhancement2 import useFileIO
 from scipy.io.wavfile import read
 import sys
 import scipy.signal as sig
+import scipy.stats as stats
 #sys.path.append("../pyDSP")
 from play import play
 from myLMS import myFilterLMS
 from dtd import doubleTalkDetection
 
-# these two function supplement your online measurement
-def getInput():
-    # it produces input vector of size 3
-    x = np.random.random(1)
-    return x
-
-
-def generate_d(x):
-    # generate system output
-    d = 2 * x[0] + 1 * x[1] - 1.5 * x[2]
-    return d
 
 def delay(dl):
     for n in range(len(dl)-1,0,-1):
         dl[n] = dl[n-1]
     return dl
 
+useFileIO = True
 
-canc_file = wave.open('canc_offline.wav', 'wb')
-Fs,farend_data = read('Hill.wav')
-farend_data = farend_data[:Fs*3]
+if useFileIO:
+    canc_file = wave.open('canc_offline.wav', 'wb')
+    Fs,farend_data = read('Hill.wav')
+    farend_data = farend_data[:Fs*3]
 
-#dFs,d_file = read('mic_short.wav')
-dFs = Fs
-farend_data = np.array(farend_data/32768.0,dtype=float)
-
+    #dFs,d_file = read('mic_short.wav')
+    dFs = Fs
+    farend_data = np.array(farend_data/32768.0,dtype=float)
+else:
 # use white noise to get maximum results (ie.training mode)
-#farend_data = np.random.random(100000)
-#if (dFs != Fs):
-#    d_file = sig.resample(d_file,int(len(farend_data)/Fs))
+    Fs = 48000
+    farend_data = stats.truncnorm(-1, 1, scale=0.5).rvs(size=Fs * 1)
 
-#dFs,d_file = read('mic_short.wav')
 h = np.array([0,0.5,0,0,0.3,0,0,0,0,0.1,0,0,0])
 dFs = Fs
 
@@ -63,11 +55,11 @@ xDL = np.zeros(tailLength)
 log_d = np.zeros(N)
 log_y = np.zeros(N)
 err = np.zeros(N)
+filt = myFilterLMS(tailLength, mu=.21, w="zeros")
 filt2 = pa.filters.FilterNLMS(tailLength, mu=1)
 #filt2 = pa.filters.FilterAP(n=tailLength, order=5, mu=.5, ifc=0.001, w='random')
 hh = np.append(h,np.zeros(tailLength-len(h)))
-hh = hh + np.random.random(len(hh))/100
-filt = myFilterLMS(tailLength, mu=.21, w="zeros")
+hh = hh + np.random.normal(len(hh))/100
 d_data = np.append(d_data,np.zeros(tailLength))
 dtdHistory = []
 
@@ -84,8 +76,8 @@ for k in range(N):
     dtdHistory.append(dtdState)
 
     # predict new value
-    #y = filt.predict(xDL)
-    y = filt2.predict(xDL)
+    y = filt.predict(xDL)
+    #y = filt2.predict(xDL)
     if np.isnan(y):
         print("Output is NaN, probably use a smaller mu")
     # do the important stuff with prediction output
@@ -94,8 +86,8 @@ for k in range(N):
         pass
     else:
         # update filter
-        #filt.adapt(d, xDL)
-        filt2.adapt(d, xDL)
+        filt.adapt(d, xDL)
+        #filt2.adapt(d, xDL)
     # log values
     log_d[k] = d
     log_y[k] = y
@@ -108,6 +100,7 @@ plt.plot(d_data,label="SpkrOut")
 plt.plot(farend_data,label="MicIn")
 plt.plot(np.array(dtdHistory)*max(max(farend_data),max(d_data)),label="dtd")
 plt.title("DTD")
+plt.legend()
 plt.pause(.1)
 plt.figure(figsize=(15, 9))
 plt.subplot(221)
