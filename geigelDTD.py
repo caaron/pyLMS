@@ -143,14 +143,8 @@ def make_test(fs,scenario=1):
 
     return t, far, mic
 
-
-# =========================
-# Harness
-# =========================
-def run():
-    fs = 16000
-    t, far, mic = make_test(fs,scenario=2)
-
+def run_scenario(fs,scenario=1):
+    t, far, mic = make_test(fs,scenario)
     hard = HardGeigelDTD(fs)
     hybrid = HybridGeigelDTD(fs)
 
@@ -204,7 +198,7 @@ def run():
 
     # --- Plot 3: state ---
     axs[2].step(t, state, where="post")
-    axs[2].set_yticks([0,1,2,3])
+    axs[2].set_yticks([0, 1, 2, 3])
     axs[2].set_yticklabels(STATE_LABELS)
     axs[2].set_title("DTD State")
     axs[2].grid()
@@ -212,8 +206,19 @@ def run():
     plt.tight_layout()
 
     plt.pause(.1)
-    plt.show()
+    #plt.show()
     plt.pause(.1)
+
+
+# =========================
+# Harness
+# =========================
+def run():
+    fs = 16000
+    run_scenario(fs,1)
+    run_scenario(fs,2)
+    plt.show()  # pause
+
 
 
 if __name__ == "__main__":
